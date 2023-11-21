@@ -2,7 +2,7 @@ import os
 import numpy as np
 from matplotlib.image import imread
 import matplotlib.pyplot as plt
-from tkinter import Tk, Button, filedialog, Scale
+from tkinter import Canvas, Scrollbar, Tk, Button, filedialog, Scale, Listbox, HORIZONTAL
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 def img2double(img):
@@ -18,7 +18,8 @@ def update_compressed_image(value):
     RANK = int(value)
 
 def release_update_compressed_image(value):
-    global RANK
+    global RANK, img, ax_compressed, canvas_compressed
+
     RANK = int(value)
 
     red_channel, green_channel, blue_channel = img[:, :, 0], img[:, :, 1], img[:, :, 2]
@@ -40,55 +41,72 @@ def release_update_compressed_image(value):
     canvas_compressed.draw()
 
 def add_image():
-    global img, canvas_original, canvas_compressed, slider
+    global img, canvas_original, RANK
 
     file_path = filedialog.askopenfilename()
     if file_path:
         img = imread(file_path)
         img = img2double(img)
 
-        # Update the original image canvas
-        ax_original.clear()
-        ax_original.imshow(img)
-        ax_original.set_title('Original Image')
-        canvas_original.draw()
+        # Update the compressed image canvas
+        release_update_compressed_image(RANK)
+
+def select_image(event):
+    global img, RANK
+
+    selected_index = listbox.curselection()
+    if selected_index:
+        selected_image = listbox.get(selected_index)
+        img_path = os.path.join('img', selected_image)
+        img = imread(img_path)
+        img = img2double(img)
 
         # Update the compressed image canvas
-        update_compressed_image(RANK)
-
+        release_update_compressed_image(RANK)
 def on_closing():
     root.destroy()
-
-# Default rank value
-RANK = 5
 
 # Create the Tkinter window
 root = Tk()
 root.title('Image Compression using SVD')
 
-# Create a button to add an image
+# Create a button to add the selected image
 add_button = Button(root, text='Add Image', command=add_image)
 add_button.pack()
 
 # Create a slider for adjusting the rank
+RANK = 5
 slider = Scale(root, from_=1, to=100, orient='horizontal', label='Rank', command=update_compressed_image, resolution=1, length=300)
 slider.set(RANK)
 slider.pack()
 
-# Create a figure for the original image on the left
-fig_original = plt.Figure(figsize=(6, 6))
-ax_original = fig_original.add_subplot(111)
-canvas_original = FigureCanvasTkAgg(fig_original, master=root)
-canvas_original.get_tk_widget().pack(side='left')
-
-# Create a figure for the compressed image on the right
-fig_compressed = plt.Figure(figsize=(6, 6))
+# Create a figure for the compressed image
+fig_compressed = plt.Figure(figsize=(4, 4))
 ax_compressed = fig_compressed.add_subplot(111)
 canvas_compressed = FigureCanvasTkAgg(fig_compressed, master=root)
-canvas_compressed.get_tk_widget().pack(side='right')
+canvas_compressed.get_tk_widget().pack()
 
 # Set up the release event for the slider
 slider.bind("<ButtonRelease-1>", lambda event: release_update_compressed_image(slider.get()))
+
+# Create a Listbox for displaying the list of images
+listbox = Listbox(root)
+listbox.pack(side="bottom") 
+listbox.bind("<Button-1>", select_image)
+
+# Display all original images in the listbox
+for img_file in os.listdir('img'):
+    img_path = os.path.join('img', img_file)
+    original_img = imread(img_path)
+    original_img = img2double(original_img)
+
+    fig_original = plt.Figure(figsize=(5, 5))
+    ax_original = fig_original.add_subplot(111)
+    ax_original.imshow(original_img)
+    ax_original.axis('off')
+
+    canvas_original = FigureCanvasTkAgg(fig_original, master=listbox)
+    canvas_original.get_tk_widget().pack(side='left')
 
 # Set up the window closing event
 root.protocol("WM_DELETE_WINDOW", on_closing)
