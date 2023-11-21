@@ -1,77 +1,97 @@
 import os
 import numpy as np
+from matplotlib.image import imread
 import matplotlib.pyplot as plt
+from tkinter import Tk, Button, filedialog, Scale
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import tkinter as tk
-from tkinter import filedialog
 
+def img2double(img):
+    info = np.iinfo(img.dtype)
+    return img.astype(float) / info.max
 
-# Hàm nén ảnh bằng phương pháp SVD
-def svd_compress(img, rank):
-    U, S, VT = np.linalg.svd(img, full_matrices=False)
-    U_rank = U[:, :rank]
-    S_rank = np.diag(S[:rank])
-    VT_rank = VT[:rank, :]
-    compressed_img = U_rank @ S_rank @ VT_rank
-    return compressed_img
+def svd(img, full_matrices=False):
+    U, S, VT = np.linalg.svd(img, full_matrices=full_matrices)
+    return U, np.diag(S), VT
 
-def compress_image():
-    global img_gray
-    global rank_to_compress
+def update_compressed_image(value):
+    global RANK
+    RANK = int(value)
 
-    compressed_img = svd_compress(img_gray, rank_to_compress)
+def release_update_compressed_image(value):
+    global RANK
+    RANK = int(value)
 
-    # Đóng figure chứa ảnh gốc
-    plt.close(fig_original)
+    red_channel, green_channel, blue_channel = img[:, :, 0], img[:, :, 1], img[:, :, 2]
 
-    # Hiển thị ảnh gốc và ảnh nén
-    fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+    U_B, S_B, VT_B = svd(blue_channel)
+    U_G, S_G, VT_G = svd(green_channel)
+    U_R, S_R, VT_R = svd(red_channel)
 
-    ax[0].set_title('Original Image')
-    ax[0].imshow(img_gray, cmap='gray')
+    XR_r = U_R[:, :RANK] @ S_R[:RANK, :RANK] @ VT_R[:RANK, :]
+    XG_r = U_G[:, :RANK] @ S_G[:RANK, :RANK] @ VT_G[:RANK, :]
+    XB_r = U_B[:, :RANK] @ S_B[:RANK, :RANK] @ VT_B[:RANK, :]
 
-    ax[1].set_title(f'Compressed Image (Rank={rank_to_compress})')
-    ax[1].imshow(compressed_img, cmap='gray')
+    X_r = np.dstack((XR_r, XG_r, XB_r))
 
-    # Cập nhật canvas
-    plt.show()
+    # Update the compressed image canvas
+    ax_compressed.clear()
+    ax_compressed.imshow(X_r)
+    ax_compressed.set_title(f'Compressed Image (Rank {RANK})')
+    canvas_compressed.draw()
 
+def add_image():
+    global img, canvas_original, canvas_compressed, slider
 
-def open_image():
     file_path = filedialog.askopenfilename()
     if file_path:
-        img = plt.imread(file_path)
-        img_gray = np.mean(img, -1)
-        update_image(img_gray)
-        
+        img = imread(file_path)
+        img = img2double(img)
 
-def update_image(img):
-    global img_gray
-    img_gray = img
-    ax.imshow(img_gray, cmap='gray')
-    canvas.draw()
+        # Update the original image canvas
+        ax_original.clear()
+        ax_original.imshow(img)
+        ax_original.set_title('Original Image')
+        canvas_original.draw()
 
-# Khởi tạo cửa sổ tkinter
-root = tk.Tk()
+        # Update the compressed image canvas
+        update_compressed_image(RANK)
+
+def on_closing():
+    root.destroy()
+
+# Default rank value
+RANK = 5
+
+# Create the Tkinter window
+root = Tk()
 root.title('Image Compression using SVD')
 
-# Tạo button để mở ảnh
-open_button = tk.Button(root, text='Open Image', command=open_image)
-open_button.pack()
+# Create a button to add an image
+add_button = Button(root, text='Add Image', command=add_image)
+add_button.pack()
 
-# Tạo button để nén ảnh
-compress_button = tk.Button(root, text='Compress Image', command=compress_image)
-compress_button.pack()
+# Create a slider for adjusting the rank
+slider = Scale(root, from_=1, to=100, orient='horizontal', label='Rank', command=update_compressed_image, resolution=1, length=300)
+slider.set(RANK)
+slider.pack()
 
-# Tạo figure và canvas để hiển thị ảnh
-fig_original, ax = plt.subplots(figsize=(6, 6))
-canvas = FigureCanvasTkAgg(fig_original, master=root)
-canvas_widget = canvas.get_tk_widget()
-canvas_widget.pack()
+# Create a figure for the original image on the left
+fig_original = plt.Figure(figsize=(6, 6))
+ax_original = fig_original.add_subplot(111)
+canvas_original = FigureCanvasTkAgg(fig_original, master=root)
+canvas_original.get_tk_widget().pack(side='left')
 
-# Khởi tạo biến toàn cục cho ảnh grayscale và rank
-img_gray = None
-rank_to_compress = 10
+# Create a figure for the compressed image on the right
+fig_compressed = plt.Figure(figsize=(6, 6))
+ax_compressed = fig_compressed.add_subplot(111)
+canvas_compressed = FigureCanvasTkAgg(fig_compressed, master=root)
+canvas_compressed.get_tk_widget().pack(side='right')
 
-# Hiển thị cửa sổ tkinter
+# Set up the release event for the slider
+slider.bind("<ButtonRelease-1>", lambda event: release_update_compressed_image(slider.get()))
+
+# Set up the window closing event
+root.protocol("WM_DELETE_WINDOW", on_closing)
+
+# Start the Tkinter main loop
 root.mainloop()
