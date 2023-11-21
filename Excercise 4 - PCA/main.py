@@ -9,6 +9,7 @@ import os
 
 images = []
 flatten_images = []
+shown_image_index = 0
 
 
 class LeftSideBar(ttk.Frame):
@@ -83,27 +84,94 @@ class MainFrame(ttk.Frame):
         images_row_frame.grid(row=1, column=0, pady=(0, 10))
 
         # Before Image Frame
-        before_frame = ttk.Frame(images_row_frame)
-        before_frame.grid(row=0, column=0, padx=10)
-        label_before = tk.Label(before_frame, text="Before", font=("Arial", 12, "bold"))
-        label_before.pack()
-        # Add your before image display widget here
+        self.before_frame = tk.Frame(
+            images_row_frame,
+            width=200,
+            height=200,
+            bg="white",
+            borderwidth=2,
+            relief="solid",
+            highlightbackground="black",
+            highlightthickness=1,
+        )
+        self.before_frame.grid(row=0, column=0, padx=10)
 
         # After Image Frame
-        after_frame = ttk.Frame(images_row_frame)
+        after_frame = tk.Frame(
+            images_row_frame,
+            width=200,
+            height=200,
+            bg="white",
+            borderwidth=2,
+            relief="solid",
+            highlightbackground="black",
+            highlightthickness=1,
+        )
         after_frame.grid(row=0, column=1, padx=10)
-        label_after = tk.Label(after_frame, text="After", font=("Arial", 12, "bold"))
-        label_after.pack()
-        # Add your after image display widget here
 
         # Reconstruction Image Frame
-        reconstruction_frame = ttk.Frame(images_row_frame)
+        reconstruction_frame = tk.Frame(
+            images_row_frame,
+            width=200,
+            height=200,
+            bg="white",
+            borderwidth=2,
+            relief="solid",
+            highlightbackground="black",
+            highlightthickness=1,
+        )
         reconstruction_frame.grid(row=0, column=2, padx=10)
+
+        # Label Before, After, Reconstruction
+        label_before = tk.Label(
+            self.before_frame, text="Before", font=("Arial", 12, "bold")
+        )
+        label_before.pack()
+
+        label_after = tk.Label(after_frame, text="After", font=("Arial", 12, "bold"))
+        label_after.pack()
+
         label_reconstruction = tk.Label(
-            reconstruction_frame, text="Reconstruction", font=("Arial", 12, "bold")
+            reconstruction_frame,
+            text="Reconstruction",
+            font=("Arial", 12, "bold"),
         )
         label_reconstruction.pack()
-        # Add your reconstruction image display widget here
+
+    def update_before_image(self, image):
+        # Chuyển đổi mảng NumPy thành hình ảnh của Pillow
+        pil_image = Image.fromarray(image)
+
+        # Resize hình ảnh
+        pil_image_resized = pil_image.resize((200, 200), Image.ANTIALIAS)
+
+        # Chuyển đổi hình ảnh của Pillow thành ImageTk để hiển thị trong khung hình Tkinter
+        photo = ImageTk.PhotoImage(pil_image_resized)
+        label = tk.Label(self.before_frame, image=photo, width=200, height=200)
+        label.image = photo
+        label.pack()  # Chuyển đổi mảng NumPy thành hình ảnh của Pillow
+        pil_image = Image.fromarray(image)
+
+        # Resize hình ảnh
+        pil_image_resized = pil_image.resize((200, 200), Image.ANTIALIAS)
+
+        # Chuyển đổi hình ảnh của Pillow thành ImageTk để hiển thị trong khung hình Tkinter
+        photo = ImageTk.PhotoImage(pil_image_resized)
+        label = tk.Label(self.before_frame, image=photo, width=200, height=200)
+        label.image = photo
+        label.pack()
+
+    def update_after_image(self, image):
+        photo = ImageTk.PhotoImage(image)
+        label = tk.Label(self.after_frame, image=photo, width=200, height=200)
+        label.image = photo
+        label.pack()
+
+    def update_reconstruction_image(self, image):
+        photo = ImageTk.PhotoImage(image)
+        label = tk.Label(self.reconstruction_frame, image=photo, width=200, height=200)
+        label.image = photo
+        label.pack()
 
 
 class App(tk.Tk):
@@ -130,6 +198,12 @@ class App(tk.Tk):
 
     def handle_load_dataset(self, path):
         images, flatten_images = load_and_preprocess_dataset(path)
+        if images:
+            self.right_side_bar.update_before_image(images[shown_image_index])
+            pass
+        else:
+            # thông báo lỗi
+            pass
 
     # def display_image(self, image, frame_num):
     #     image = image.resize((200, 200), Image.ANTIALIAS)
