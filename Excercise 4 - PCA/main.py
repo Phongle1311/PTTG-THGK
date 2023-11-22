@@ -230,6 +230,8 @@ class MainFrame(ttk.Frame):
         # self.reconstructed_image.configure(image=tk_image)
         # self.reconstructed_image.image = tk_image
         # Tạo figure và subplot với matplotlib
+        for widget in self.reconstructed_image.winfo_children():
+            widget.destroy()
         fig, ax = plt.subplots()
         ax.imshow(image_data.reshape((64, 64)), cmap="gray")
 
@@ -315,7 +317,17 @@ class App(tk.Tk):
         self.destroy()
 
     def save(self):
-        print("TODO")
+        if reconstructed_images is None and len(reconstructed_images) == 0:
+            messagebox.showerror("Error", "You haven't run PCA!")
+            return
+
+        path = filedialog.asksaveasfilename(
+            defaultextension="", filetypes=[("Folder", "")]
+        )
+        print(path)
+        if path:
+            save_images(reconstructed_images, path)
+            messagebox.showinfo("Saved", f"Saved image at: {path}")
 
     def run_pca(self, num_components, preserved_variance):
         global reconstructed_images
@@ -323,12 +335,9 @@ class App(tk.Tk):
         reconstructed_images = self.pca.reconstruct_img(
             self.Xbar, self.mu, num_components, preserved_variance
         )
-        print("ran", reconstructed_images[:, 0].shape)
-        # error = mse(reconstructed_imgs, Xbar)
 
         # Update ảnh lên main frame
         shown_image_index = int(self.right_side_bar.image_index_var.get())
-        # print(reconstructed_images[:, shown_image_index].shape)
         self.right_side_bar.update_reconstructed_image(
             reconstructed_images[:, shown_image_index].reshape(64, 64)
         )
