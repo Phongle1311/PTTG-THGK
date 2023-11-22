@@ -274,9 +274,11 @@ class App(tk.Tk):
     def handle_load_dataset(self, path):
         # Khi người dùng đã chọn dataset mới thì tiến hành load ảnh lên, tiền xử lý và fit pca
         global images, flatten_images
-        del images  # giải phóng bộ nhớ
-        del flatten_images
+        # del images  # giải phóng bộ nhớ
+        # del flatten_images
         images, flatten_images = load_and_preprocess_dataset(path)
+        # print(len(images))
+        # print(flatten_images.shape)
         # Cập nhật số lượng ảnh ở spinbox
         self.right_side_bar.update_image_spinbox_range(len(images))
 
@@ -287,9 +289,7 @@ class App(tk.Tk):
             )  # cập nhật ảnh hiển thị
             del self.pca  # Giải phóng bộ nhớ
             self.pca = PCA()  # Tạo instance mới
-            (self.Xbar, self.mu_Xbar, _) = self.pca.standardize(
-                flatten_images
-            )  # chuẩn hóa
+            (self.Xbar, self.mu, _) = self.pca.standardize(flatten_images)  # chuẩn hóa
             num_components = int(self.left_side_bar.n_pc_var.get())
             if num_components <= self.Xbar.shape[1]:
                 self.pca.optimize = True
@@ -309,7 +309,7 @@ class App(tk.Tk):
         global reconstructed_images
         # Chạy lại ảnh khôi phục
         reconstructed_images = self.pca.reconstruct_img(
-            self.Xbar, self.mu_Xbar, num_components, preserved_variance
+            self.Xbar, self.mu, num_components, preserved_variance
         )
         # error = mse(reconstructed_imgs, Xbar)
 

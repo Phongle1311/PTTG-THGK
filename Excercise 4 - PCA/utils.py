@@ -10,10 +10,12 @@ import matplotlib.image as mpimg
 def load_and_preprocess_dataset(IMG_DIR):
     images = []
     images_flatten = []
+    max_images = 200
 
     total = sum(1 for entry in os.scandir(IMG_DIR) if entry.is_file())
     count = 1
-    max_images = min(total, 200)
+    if total < max_images:
+        max_images = total
     for img_path in os.listdir(IMG_DIR):
         if count == max_images + 1:
             break
@@ -21,7 +23,8 @@ def load_and_preprocess_dataset(IMG_DIR):
         img_pil = Image.fromarray(img_array)
         img_64 = np.array(img_pil.resize((64, 64), Image.ANTIALIAS))
         images.append(img_64)
-        images_flatten.append(img_64.flatten())
+        img_array = img_64.flatten()
+        images_flatten.append(img_array)
         count += 1
 
     images_flatten = np.asarray(images_flatten).T
