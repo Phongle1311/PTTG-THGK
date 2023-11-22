@@ -43,8 +43,6 @@ class PCA:
         else:
             S = np.cov(Xbar)
             S = S.astype(np.float64)
-        # print(S)
-        # print(S.shape)
         self.eigenvalues, self.eigenvectors = self.find_eig_and_sort(S)
         self.sum_of_var_explained = self.get_sum_of_variance_explained()
 
