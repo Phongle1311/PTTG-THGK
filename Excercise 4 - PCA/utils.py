@@ -4,7 +4,7 @@ import numpy as np
 import cv2 as cv
 
 from PIL import Image
-
+import matplotlib.image as mpimg
 
 def load_and_preprocess_dataset(IMG_DIR):
     images = []
@@ -58,3 +58,14 @@ def get_variance_explained(evals):
     # Visualize
     # with plt.xkcd():
     # plot_variance_explained(variance_explained)
+
+def save_images(reconstructed_img):
+    output_folder = 'reconstructed_images'
+    os.makedirs(output_folder, exist_ok=True)
+
+    total = reconstructed_img.shape[1]
+    for i in range(total):
+        image = reconstructed_img[:,i].reshape((64, 64))
+        # Hiển thị hình ảnh sử dụng Matplotlib
+        output_path = f'reconstructed_images/reconstructed_image_{i}.png'  # Điều chỉnh đường dẫn và tên tệp
+        mpimg.imsave(output_path, image) 
