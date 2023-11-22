@@ -10,6 +10,7 @@ import os
 
 images = []
 flatten_images = []
+reconstructed_images = []
 shown_image_index = 0
 
 
@@ -101,10 +102,11 @@ class LeftSideBar(ttk.Frame):
 
     def load_dataset(self):
         self.path = filedialog.askdirectory()
-        self.container.handle_load_dataset(self.path)
+        if self.path:
+            self.container.handle_load_dataset(self.path)
 
     def handle_run(self):
-        if self.path is None:
+        if not self.path:
             # thông báo lỗi chưa chọn dataset
             messagebox.showerror("Error", "Please load a dataset first.")
             return
@@ -231,8 +233,8 @@ class MainFrame(ttk.Frame):
         shown_image_index = int(self.image_index_var.get())
         if 0 <= shown_image_index < len(images):
             self.update_input_image(images[shown_image_index])
-        if 0 <= shown_image_index < len(flatten_images):
-            self.update_reconstructed_image(flatten_images[shown_image_index])
+        if 0 <= shown_image_index < len(reconstructed_images):
+            self.update_reconstructed_image(reconstructed_images[shown_image_index])
 
     def update_image_spinbox_range(self, max_index):
         # max_index = len(images)
@@ -247,6 +249,9 @@ class MainFrame(ttk.Frame):
 class App(tk.Tk):
     def __init__(self, title, geo):
         super().__init__()
+
+        self.pca = PCA()
+
         self.title(title)
         self.geometry(geo)
         self.resizable(0, 0)
@@ -267,18 +272,32 @@ class App(tk.Tk):
         self.right_side_bar.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     def handle_load_dataset(self, path):
+        # Khi người dùng đã chọn dataset mới thì tiến hành load ảnh lên, tiền xử lý và fit pca
         global images, flatten_images
+        del images  # giải phóng bộ nhớ
+        del flatten_images
         images, flatten_images = load_and_preprocess_dataset(path)
+        # Cập nhật số lượng ảnh ở spinbox
         self.right_side_bar.update_image_spinbox_range(len(images))
 
         if images:
             # load thành công
-            self.right_side_bar.update_input_image(images[shown_image_index])
-            pass
+            self.right_side_bar.update_input_image(
+                images[shown_image_index]
+            )  # cập nhật ảnh hiển thị
+            del self.pca  # Giải phóng bộ nhớ
+            self.pca = PCA()  # Tạo instance mới
+            (self.Xbar, self.mu_Xbar, _) = self.pca.standardize(
+                flatten_images
+            )  # chuẩn hóa
+            num_components = 10  # TODO: mặc dù không lỗi, nhưng nên sửa lại
+            if num_components <= self.Xbar.shape[1]:
+                self.pca.optimize = True
+            self.pca.fit(self.Xbar)
+
         else:
-            # load thất bại/không hợp lệ
-            # thông báo lỗi
-            pass
+            messagebox.showerror("Error", "Can't load this dataset!")
+            return
 
     def close_app(self):
         self.destroy()
@@ -287,43 +306,17 @@ class App(tk.Tk):
         print("TODO")
 
     def run_pca(self, num_components, preserved_variance):
-        if num_components == None:
-            # tính num_pc dựa vào preserved var
-            pass
-        pca = PCA()
-        Xbar, mu, std = pca.standardize(flatten_images)
-        pca.fit(Xbar)
-        reconstructed_imgs = pca.reconstruct_img(Xbar, num_components)
-        error = mse(reconstructed_imgs, Xbar)
+        global reconstructed_images
+        # Chạy lại ảnh khôi phục
+        reconstructed_images = self.pca.reconstruct_img(
+            self.Xbar, self.mu_Xbar, num_components, preserved_variance
+        )
+        # error = mse(reconstructed_imgs, Xbar)
 
-    # def run_pca(self):
-    #     if self.image_folder:
-    #         # Load ảnh đầu tiên
-    #         image_list = os.listdir(self.image_folder)
-    #         if image_list:
-    #             image_path = os.path.join(self.image_folder, image_list[0])
-    #             original_image = Image.open(image_path)
-
-    #             # Thực hiện PCA
-    #             pca = PCA()
-
-    #             # Chuyển đổi ảnh thành dạng phù hợp cho PCA (numpy array)
-    #             image_array = np.array(original_image)
-    #             # Reshape ảnh (nếu cần)
-
-    #             # Tiến hành chuẩn hóa và giảm chiều
-    #             processed_image, mu, std = pca.standardize(image_array)
-    #             pca.fit(processed_image)
-    #             num_components = int(n_pc_var.get())  # Lấy số chiều từ spinbox
-    #             reduced_image = pca.reconstruct_img(processed_image, num_components)
-
-    #             # Tái tạo ảnh từ kết quả giảm chiều
-    #             reconstructed_image = pca.reconstruct_img(reduced_image, num_components)
-
-    #             # Hiển thị ảnh gốc, sau khi giảm chiều và tái tạo
-    #             self.display_image(original_image, 0)
-    #             self.display_image(reduced_image, 1)
-    #             self.display_image(reconstructed_image, 2)
+        # Update ảnh lên main frame
+        self.left_side_bar.update_reconstructed_image(
+            reconstructed_images[shown_image_index]
+        )
 
 
 if __name__ == "__main__":
