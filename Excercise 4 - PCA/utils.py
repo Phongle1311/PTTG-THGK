@@ -64,13 +64,12 @@ def get_variance_explained(evals):
     # plot_variance_explained(variance_explained)
 
 
-def save_images(reconstructed_img):
-    output_folder = "reconstructed_images"
+def save_images(reconstructed_img, output_folder="reconstructed_images"):
     os.makedirs(output_folder, exist_ok=True)
 
     total = reconstructed_img.shape[1]
     for i in range(total):
         image = reconstructed_img[:, i].reshape((64, 64))
         # Hiển thị hình ảnh sử dụng Matplotlib
-        output_path = f"reconstructed_images/reconstructed_image_{i}.png"  # Điều chỉnh đường dẫn và tên tệp
+        output_path = f"{output_folder}/reconstructed_image_{i}.png"  # Điều chỉnh đường dẫn và tên tệp
         mpimg.imsave(output_path, image)

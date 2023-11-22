@@ -3,10 +3,12 @@ from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
+import matplotlib.pyplot as plt
 from PIL import Image, ImageTk
 from PCA import PCA
 from utils import *
 import os
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 images = []
 flatten_images = []
@@ -145,7 +147,7 @@ class LeftSideBar(ttk.Frame):
                 return
 
             self.container.run_pca(
-                num_components=None, preserved_variance=preserved_variance
+                num_components=None, preserved_variance=preserved_variance / 100.0
             )
 
 
@@ -218,26 +220,40 @@ class MainFrame(ttk.Frame):
         self.input_image.configure(image=photo)
         self.input_image.image = photo
 
-    def update_reconstructed_image(self, image):
-        # Chuyển đổi mảng NumPy thành hình ảnh của Pillow
-        pil_image = Image.fromarray(image)
-        # Resize hình ảnh
-        pil_image_resized = pil_image.resize((200, 200), Image.ANTIALIAS)
-        # Chuyển đổi hình ảnh của Pillow thành ImageTk để hiển thị trong khung hình Tkinter
-        photo = ImageTk.PhotoImage(pil_image_resized)
-        self.reconstructed_image.configure(image=photo)
-        self.reconstructed_image.image = photo
+    def update_reconstructed_image(self, image_data):
+        # Chuyển đổi mảng numpy thành hình ảnh của Pillow
+        # image = Image.fromarray((image_data * 255).astype("uint8"))
+        # # Resize ảnh để hiển thị trong widget (ở đây là 200x200)
+        # image = image.resize((200, 200), Image.ANTIALIAS)
+        # # Chuyển đổi hình ảnh của Pillow thành ImageTk để hiển thị trong tkinter
+        # tk_image = ImageTk.PhotoImage(image)
+        # self.reconstructed_image.configure(image=tk_image)
+        # self.reconstructed_image.image = tk_image
+        # Tạo figure và subplot với matplotlib
+        for widget in self.reconstructed_image.winfo_children():
+            widget.destroy()
+        fig, ax = plt.subplots()
+        ax.imshow(image_data.reshape((64, 64)), cmap="gray")
+
+        # Tạo canvas để hiển thị hình ảnh từ subplot
+        canvas = FigureCanvasTkAgg(fig, master=self.reconstructed_image)
+        canvas.draw()
+
+        # Cập nhật widget canvas với hình ảnh
+        canvas.get_tk_widget().pack(side="bottom", fill="both", expand=True)
 
     def update_image_by_index(self):
-        print(len(images))
+        # print(reconstructed_images.shape)
         shown_image_index = int(self.image_index_var.get())
+
         if 0 <= shown_image_index < len(images):
             self.update_input_image(images[shown_image_index])
         if 0 <= shown_image_index < len(reconstructed_images):
-            self.update_reconstructed_image(reconstructed_images[shown_image_index])
+            self.update_reconstructed_image(
+                reconstructed_images[:, shown_image_index].reshape(64, 64)
+            )
 
     def update_image_spinbox_range(self, max_index):
-        # max_index = len(images)
         self.image_index_spinbox.configure(to=max_index)
         self.image_index_var.set("1")
         if max_index <= 0:
@@ -277,8 +293,6 @@ class App(tk.Tk):
         # del images  # giải phóng bộ nhớ
         # del flatten_images
         images, flatten_images = load_and_preprocess_dataset(path)
-        # print(len(images))
-        # print(flatten_images.shape)
         # Cập nhật số lượng ảnh ở spinbox
         self.right_side_bar.update_image_spinbox_range(len(images))
 
@@ -303,7 +317,17 @@ class App(tk.Tk):
         self.destroy()
 
     def save(self):
-        print("TODO")
+        if reconstructed_images is None and len(reconstructed_images) == 0:
+            messagebox.showerror("Error", "You haven't run PCA!")
+            return
+
+        path = filedialog.asksaveasfilename(
+            defaultextension="", filetypes=[("Folder", "")]
+        )
+        print(path)
+        if path:
+            save_images(reconstructed_images, path)
+            messagebox.showinfo("Saved", f"Saved image at: {path}")
 
     def run_pca(self, num_components, preserved_variance):
         global reconstructed_images
@@ -311,11 +335,11 @@ class App(tk.Tk):
         reconstructed_images = self.pca.reconstruct_img(
             self.Xbar, self.mu, num_components, preserved_variance
         )
-        # error = mse(reconstructed_imgs, Xbar)
 
         # Update ảnh lên main frame
+        shown_image_index = int(self.right_side_bar.image_index_var.get())
         self.right_side_bar.update_reconstructed_image(
-            reconstructed_images[shown_image_index]
+            reconstructed_images[:, shown_image_index].reshape(64, 64)
         )
 
 
