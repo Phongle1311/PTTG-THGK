@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
+from tkinter import messagebox
 from PIL import Image, ImageTk
 from PCA import PCA
 from utils import *
@@ -16,6 +17,7 @@ class LeftSideBar(ttk.Frame):
     def __init__(self, container, bg_color="pink"):
         super().__init__(container)
         self.container = container
+        self.path = None
 
         self.width = 100
         self.configure(width=self.width)  # Set width to 100
@@ -36,32 +38,117 @@ class LeftSideBar(ttk.Frame):
             anchor=tk.W, padx=5, pady=(5, 15), fill=tk.X
         )
 
-        # Label và Spinbox cho no. principle components
-        label_n_pc = tk.Label(self, text="No. PCs", bg=self.bg)
-        label_n_pc.pack(anchor=tk.W, padx=5)
-        n_pc_var = tk.StringVar()
-        n_pc_spinbox = ttk.Spinbox(self, from_=0, to=100, textvariable=n_pc_var)
-        n_pc_spinbox.pack(anchor=tk.W, padx=5, fill=tk.X)
+        # Frame to hold Radiobuttons and corresponding Spinboxes
+        radio_frame = tk.Frame(self)
+        radio_frame.pack(anchor=tk.W, padx=5)
 
-        # Label và Spinbox cho preserved variance
-        label_preserved_var = tk.Label(self, text="Preserved variance", bg=self.bg)
-        label_preserved_var.pack(anchor=tk.W, padx=5)
-        preserved_var_var = tk.StringVar()
-        preserved_var_spinbox = ttk.Spinbox(
-            self, from_=0, to=100, textvariable=preserved_var_var
+        self.selection = tk.IntVar()
+        self.selection.set(1)  # Set default selection to No. PCs
+
+        def on_radio_selection():
+            selected = self.selection.get()
+            if selected == 1:
+                self.n_pc_spinbox.configure(state="normal")
+                self.preserved_var_spinbox.configure(state="disabled")
+            elif selected == 2:
+                self.n_pc_spinbox.configure(state="disabled")
+                self.preserved_var_spinbox.configure(state="normal")
+
+        tk.Radiobutton(
+            radio_frame,
+            text="No. PCs",
+            variable=self.selection,
+            value=1,
+            command=on_radio_selection,
+        ).pack(pady=5, anchor="w")
+
+        self.n_pc_var = tk.StringVar(value="30")
+        self.n_pc_spinbox = ttk.Spinbox(
+            radio_frame, from_=0, to=100, textvariable=self.n_pc_var
         )
-        preserved_var_spinbox.pack(anchor=tk.W, padx=5, fill=tk.X)
+        # self.n_pc_spinbox.delete(0, "end")
+        # self.n_pc_spinbox.insert(0, "30")
+        self.n_pc_spinbox.pack(pady=5)
+
+        tk.Radiobutton(
+            radio_frame,
+            text="Preserved variance",
+            variable=self.selection,
+            value=2,
+            command=on_radio_selection,
+        ).pack(pady=5, anchor="w")
+
+        self.preserved_var_var = tk.StringVar(value="95")
+        self.preserved_var_spinbox = ttk.Spinbox(
+            radio_frame, from_=0, to=100, textvariable=self.preserved_var_var
+        )
+        # self.preserved_var_spinbox.delete(0, "end")
+        # self.preserved_var_spinbox.insert(0, "95")
+        self.preserved_var_spinbox.pack(pady=5)
 
         # Button Run
-        ttk.Button(self, text="Run").pack(anchor=tk.W, padx=5, pady=(25, 0), fill=tk.X)
+        ttk.Button(self, text="Run", command=self.handle_run).pack(
+            anchor=tk.W, padx=5, pady=(25, 0), fill=tk.X
+        )
 
         # Button Save và Button Quit
-        ttk.Button(self, text="Quit").pack(side=BOTTOM, padx=5, pady=5, fill=tk.X)
-        ttk.Button(self, text="Save").pack(side=BOTTOM, padx=5, pady=5, fill=tk.X)
+        ttk.Button(self, text="Quit", command=self.container.close_app).pack(
+            side=tk.BOTTOM, padx=5, pady=5, fill=tk.X
+        )
+        ttk.Button(self, text="Save", command=self.container.save).pack(
+            side=tk.BOTTOM, padx=5, pady=5, fill=tk.X
+        )
+
+        # Initial setup to disable one of the Spinbox
+        self.n_pc_spinbox.configure(state="normal")
+        self.preserved_var_spinbox.configure(state="disabled")
 
     def load_dataset(self):
-        path = filedialog.askdirectory()
-        self.container.handle_load_dataset(path)
+        self.path = filedialog.askdirectory()
+        self.container.handle_load_dataset(self.path)
+
+    def handle_run(self):
+        if self.path is None:
+            # thông báo lỗi chưa chọn dataset
+            messagebox.showerror("Error", "Please load a dataset first.")
+            return
+
+        selected = self.selection.get()
+        if selected == 1:
+            try:
+                num_components = int(self.n_pc_var.get())
+                if num_components <= 0 or num_components > 200:
+                    messagebox.showerror(
+                        "Error",
+                        "Invalid value for No. PCs. Please enter a value between 1 and 200.",
+                    )
+            except ValueError:
+                messagebox.showerror(
+                    "Error", "Invalid value for No. PCs. Please enter a valid number."
+                )
+                return
+
+            self.container.run_pca(
+                num_components=num_components, preserved_variance=None
+            )
+        elif selected == 2:
+            try:
+                preserved_variance = float(self.preserved_var_var.get())
+                if preserved_variance <= 0 or preserved_variance > 100:
+                    messagebox.showerror(
+                        "Error",
+                        "Invalid value for Preserved variance. Please enter a value between 0 and 100.",
+                    )
+            except ValueError:
+                messagebox.showerror(
+                    "Error",
+                    "Invalid value for Preserved variance. Please enter a valid number.",
+                )
+                return
+
+            self.container.run_pca(
+                num_components=None, preserved_variance=preserved_variance
+            )
 
 
 class MainFrame(ttk.Frame):
@@ -79,99 +166,49 @@ class MainFrame(ttk.Frame):
         )
         main_title.grid(row=0, column=0, pady=(20, 10), sticky="n")
 
-        # Frame to hold three images in a row
+        # Frame to hold 2 images in a row
         images_row_frame = ttk.Frame(self)
-        images_row_frame.grid(row=1, column=0, pady=(0, 10))
+        images_row_frame.grid(row=1, column=0, pady=(20, 10))
 
-        # Before Image Frame
-        self.before_frame = tk.Frame(
-            images_row_frame,
-            width=200,
-            height=200,
-            bg="white",
-            borderwidth=2,
-            relief="solid",
-            highlightbackground="black",
-            highlightthickness=1,
-        )
-        self.before_frame.grid(row=0, column=0, padx=10)
-
-        # After Image Frame
-        after_frame = tk.Frame(
-            images_row_frame,
-            width=200,
-            height=200,
-            bg="white",
-            borderwidth=2,
-            relief="solid",
-            highlightbackground="black",
-            highlightthickness=1,
-        )
-        after_frame.grid(row=0, column=1, padx=10)
+        # Input Image Frame
+        input_frame = tk.Frame(images_row_frame)
+        input_frame.grid(row=0, column=0, padx=10)
 
         # Reconstruction Image Frame
-        reconstruction_frame = tk.Frame(
-            images_row_frame,
-            width=200,
-            height=200,
-            bg="white",
-            borderwidth=2,
-            relief="solid",
-            highlightbackground="black",
-            highlightthickness=1,
-        )
-        reconstruction_frame.grid(row=0, column=2, padx=10)
+        reconstruction_frame = tk.Frame(images_row_frame)
+        reconstruction_frame.grid(row=0, column=1, padx=10)
 
-        # Label Before, After, Reconstruction
-        label_before = tk.Label(
-            self.before_frame, text="Before", font=("Arial", 12, "bold")
-        )
-        label_before.pack()
-
-        label_after = tk.Label(after_frame, text="After", font=("Arial", 12, "bold"))
-        label_after.pack()
-
-        label_reconstruction = tk.Label(
+        tk.Label(input_frame, text="Input Image", font=("Arial", 12, "bold")).pack()
+        tk.Label(
             reconstruction_frame,
             text="Reconstruction",
             font=("Arial", 12, "bold"),
-        )
-        label_reconstruction.pack()
+        ).pack()
 
-    def update_before_image(self, image):
+        self.input_image = tk.Label(input_frame)
+        self.input_image.pack(side=BOTTOM)
+        self.reconstructed_image = tk.Label(reconstruction_frame)
+        self.reconstructed_image.pack(side=BOTTOM)
+
+    def update_input_image(self, image):
         # Chuyển đổi mảng NumPy thành hình ảnh của Pillow
         pil_image = Image.fromarray(image)
-
         # Resize hình ảnh
         pil_image_resized = pil_image.resize((200, 200), Image.ANTIALIAS)
-
         # Chuyển đổi hình ảnh của Pillow thành ImageTk để hiển thị trong khung hình Tkinter
         photo = ImageTk.PhotoImage(pil_image_resized)
-        label = tk.Label(self.before_frame, image=photo, width=200, height=200)
-        label.image = photo
-        label.pack()  # Chuyển đổi mảng NumPy thành hình ảnh của Pillow
+        self.input_image.configure(image=photo)
+        self.input_image.image = photo
+
+    def update_reconstructed_image(self, image):
+        # Chuyển đổi mảng NumPy thành hình ảnh của Pillow
         pil_image = Image.fromarray(image)
-
         # Resize hình ảnh
         pil_image_resized = pil_image.resize((200, 200), Image.ANTIALIAS)
-
         # Chuyển đổi hình ảnh của Pillow thành ImageTk để hiển thị trong khung hình Tkinter
         photo = ImageTk.PhotoImage(pil_image_resized)
-        label = tk.Label(self.before_frame, image=photo, width=200, height=200)
-        label.image = photo
-        label.pack()
-
-    def update_after_image(self, image):
-        photo = ImageTk.PhotoImage(image)
-        label = tk.Label(self.after_frame, image=photo, width=200, height=200)
-        label.image = photo
-        label.pack()
-
-    def update_reconstruction_image(self, image):
-        photo = ImageTk.PhotoImage(image)
-        label = tk.Label(self.reconstruction_frame, image=photo, width=200, height=200)
-        label.image = photo
-        label.pack()
+        self.reconstructed_image.configure(image=photo)
+        self.reconstructed_image.image = photo
 
 
 class App(tk.Tk):
@@ -199,20 +236,30 @@ class App(tk.Tk):
     def handle_load_dataset(self, path):
         images, flatten_images = load_and_preprocess_dataset(path)
         if images:
-            self.right_side_bar.update_before_image(images[shown_image_index])
+            # load thành công
+            self.right_side_bar.update_input_image(images[shown_image_index])
             pass
         else:
+            # load thất bại/không hợp lệ
             # thông báo lỗi
             pass
 
-    # def display_image(self, image, frame_num):
-    #     image = image.resize((200, 200), Image.ANTIALIAS)
-    #     photo = ImageTk.PhotoImage(image)
-    #     label = ttk.Label(self.right_side_bar.grid_slaves()[0], image=photo)
-    #     label.image = photo
-    #     label.grid(row=0, column=frame_num)
+    def close_app(self):
+        self.destroy()
 
-    # Trong hàm run_pca
+    def save(self):
+        print("TODO")
+
+    def run_pca(self, num_components, preserved_variance):
+        if num_components == None:
+            # tính num_pc dựa vào preserved var
+            pass
+        pca = PCA()
+        Xbar, mu, std = pca.standardize(flatten_images)
+        pca.fit(Xbar)
+        reconstructed_imgs = pca.reconstruct_img(Xbar, num_components)
+        error = mse(reconstructed_imgs, Xbar)
+
     # def run_pca(self):
     #     if self.image_folder:
     #         # Load ảnh đầu tiên
