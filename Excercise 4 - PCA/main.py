@@ -66,13 +66,11 @@ class LeftSideBar(ttk.Frame):
         self.n_pc_spinbox = ttk.Spinbox(
             radio_frame, from_=0, to=100, textvariable=self.n_pc_var
         )
-        # self.n_pc_spinbox.delete(0, "end")
-        # self.n_pc_spinbox.insert(0, "30")
         self.n_pc_spinbox.pack(pady=5)
 
         tk.Radiobutton(
             radio_frame,
-            text="Preserved variance",
+            text="Preserved variance (%)",
             variable=self.selection,
             value=2,
             command=on_radio_selection,
@@ -82,8 +80,6 @@ class LeftSideBar(ttk.Frame):
         self.preserved_var_spinbox = ttk.Spinbox(
             radio_frame, from_=0, to=100, textvariable=self.preserved_var_var
         )
-        # self.preserved_var_spinbox.delete(0, "end")
-        # self.preserved_var_spinbox.insert(0, "95")
         self.preserved_var_spinbox.pack(pady=5)
 
         # Button Run
@@ -166,9 +162,29 @@ class MainFrame(ttk.Frame):
         )
         main_title.grid(row=0, column=0, pady=(20, 10), sticky="n")
 
+        # Tạo frame chứa label và spinbox cho image index
+        image_index_frame = tk.Frame(self)
+        image_index_frame.grid(row=1, column=0, pady=(0, 20))
+
+        self.image_index_label = tk.Label(
+            image_index_frame, font=("Arial", 10), text="Image Index:"
+        )
+        self.image_index_label.pack(side=tk.LEFT)
+
+        self.image_index_var = tk.StringVar(value="1")
+        self.image_index_spinbox = ttk.Spinbox(
+            image_index_frame,
+            from_=1,
+            to=len(images),
+            textvariable=self.image_index_var,
+            command=self.update_image_by_index,
+        )
+        self.image_index_spinbox.configure(state="disabled")
+        self.image_index_spinbox.pack(side=tk.LEFT, padx=5)
+
         # Frame to hold 2 images in a row
         images_row_frame = ttk.Frame(self)
-        images_row_frame.grid(row=1, column=0, pady=(20, 10))
+        images_row_frame.grid(row=2, column=0, pady=(20, 10))
 
         # Input Image Frame
         input_frame = tk.Frame(images_row_frame)
@@ -210,6 +226,23 @@ class MainFrame(ttk.Frame):
         self.reconstructed_image.configure(image=photo)
         self.reconstructed_image.image = photo
 
+    def update_image_by_index(self):
+        print(len(images))
+        shown_image_index = int(self.image_index_var.get())
+        if 0 <= shown_image_index < len(images):
+            self.update_input_image(images[shown_image_index])
+        if 0 <= shown_image_index < len(flatten_images):
+            self.update_reconstructed_image(flatten_images[shown_image_index])
+
+    def update_image_spinbox_range(self, max_index):
+        # max_index = len(images)
+        self.image_index_spinbox.configure(to=max_index)
+        self.image_index_var.set("1")
+        if max_index <= 0:
+            self.image_index_spinbox.configure(state="disabled")
+        else:
+            self.image_index_spinbox.configure(state="active")
+
 
 class App(tk.Tk):
     def __init__(self, title, geo):
@@ -234,7 +267,10 @@ class App(tk.Tk):
         self.right_side_bar.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
     def handle_load_dataset(self, path):
+        global images, flatten_images
         images, flatten_images = load_and_preprocess_dataset(path)
+        self.right_side_bar.update_image_spinbox_range(len(images))
+
         if images:
             # load thành công
             self.right_side_bar.update_input_image(images[shown_image_index])
