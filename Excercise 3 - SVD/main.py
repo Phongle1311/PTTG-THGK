@@ -2,23 +2,33 @@ import os
 import numpy as np
 from matplotlib.image import imread
 import matplotlib.pyplot as plt
-from tkinter import Canvas, Scrollbar, Tk, Button, filedialog, Scale, Listbox, HORIZONTAL
+from tkinter import (
+    Tk,
+    Button,
+    filedialog,
+    Scale,
+    Listbox,
+)
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
 
 # Chuyển đổi giá trị của ảnh thành kiểu dữ liệu float trong khoảng từ 0 đến 1.
 def img2double(img):
     info = np.iinfo(img.dtype)
     return img.astype(float) / info.max
 
+
 # Thực hiện phân rã SVD cho một ma trận
 def svd(img, full_matrices=False):
     U, S, VT = np.linalg.svd(img, full_matrices=full_matrices)
     return U, np.diag(S), VT
 
+
 # Cập nhật ảnh nén khi giá trị của thanh trượt thay đổi
 def update_compressed_image(value):
     global RANK
     RANK = int(value)
+
 
 # Cập nhật và hiển thị ảnh nén khi giải phóng sự kiện của thanh trượt
 def release_update_compressed_image(value):
@@ -41,8 +51,9 @@ def release_update_compressed_image(value):
     # Cập nhật canvas hình ảnh nén
     ax_compressed.clear()
     ax_compressed.imshow(X_r)
-    ax_compressed.set_title(f'Compressed Image (Rank {RANK})')
+    ax_compressed.set_title(f"Compressed Image (Rank {RANK})")
     canvas_compressed.draw()
+
 
 # Cho phép người dùng chọn và thêm ảnh mới từ hộp thoại mở tệp
 def add_image():
@@ -56,6 +67,7 @@ def add_image():
         # Cập nhật canvas hình ảnh nén
         release_update_compressed_image(RANK)
 
+
 # Cập nhật ảnh nén khi người dùng chọn ảnh từ danh sách.
 def select_image(event):
     global img, RANK
@@ -63,30 +75,41 @@ def select_image(event):
     selected_index = listbox.curselection()
     if selected_index:
         selected_image = listbox.get(selected_index)
-        img_path = os.path.join('img', selected_image)
+        img_path = os.path.join("img", selected_image)
         img = imread(img_path)
         img = img2double(img)
 
         # Cập nhật canvas hình ảnh nén
         release_update_compressed_image(RANK)
 
+
 # Xử lý sự kiện đóng cửa sổ
 def on_closing():
     root.destroy()
 
+
 # Tạo cửa sổ chính cho ứng dụng
 root = Tk()
-root.title('Image Compression using SVD')
+root.title("Image Compression using SVD")
 
 # Nút này mở hộp thoại mở tệp khi được nhấp để thêm ảnh.
-add_button = Button(root, text='Add Image', command=add_image)
+add_button = Button(root, text="Add Image", command=add_image)
 add_button.pack()
 
 # Cho phép người dùng chọn giá trị RANK để kiểm soát mức độ nén.
 RANK = 5
 
 # Thiết lập thanh slider
-slider = Scale(root, from_=1, to=100, orient='horizontal', label='Rank', command=update_compressed_image, resolution=1, length=300)
+slider = Scale(
+    root,
+    from_=1,
+    to=100,
+    orient="horizontal",
+    label="Rank",
+    command=update_compressed_image,
+    resolution=1,
+    length=300,
+)
 slider.set(RANK)
 slider.pack()
 
@@ -97,25 +120,48 @@ canvas_compressed = FigureCanvasTkAgg(fig_compressed, master=root)
 canvas_compressed.get_tk_widget().pack()
 
 # Thiết lập sự kiện cho thanh slider
-slider.bind("<ButtonRelease-1>", lambda event: release_update_compressed_image(slider.get()))
+slider.bind(
+    "<ButtonRelease-1>", lambda event: release_update_compressed_image(slider.get())
+)
 
 # Hiển thị tất cả các ảnh gốc trong thư mục 'img' và cho phép người dùng chọn ảnh để xem và nén
 listbox = Listbox(root)
-listbox.pack(side="bottom") 
+listbox.pack(side="bottom")
 listbox.bind("<Button-1>", select_image)
 
-for img_file in os.listdir('img'):
-    img_path = os.path.join('img', img_file)
+
+def create_click_event(canvas, img):
+    canvas.mpl_connect("button_press_event", lambda event: on_canvas_click(event, img))
+
+
+def on_canvas_click(event, template_image):
+    print("hehee")
+    global img, canvas_original, RANK
+
+    img = template_image
+
+    # Cập nhật canvas hình ảnh nén
+    release_update_compressed_image(RANK)
+    # Update RANK value here
+    update_compressed_image(slider.get())  # Ensure RANK is updated
+    release_update_compressed_image(slider.get())
+
+
+for img_file in os.listdir("img"):
+    img_path = os.path.join("img", img_file)
     original_img = imread(img_path)
     original_img = img2double(original_img)
 
-    fig_original = plt.Figure(figsize=(5, 5))
+    fig_original = plt.Figure(figsize=(2, 2))
     ax_original = fig_original.add_subplot(111)
     ax_original.imshow(original_img)
-    ax_original.axis('off')
+    ax_original.axis("off")
 
     canvas_original = FigureCanvasTkAgg(fig_original, master=listbox)
-    canvas_original.get_tk_widget().pack(side='left')
+    canvas_original.get_tk_widget().pack(side="left")
+
+    # Bắt sự kiện click cho mỗi canvas
+    create_click_event(canvas_original, original_img)
 
 # Khi người dùng đóng cửa sổ, chương trình sẽ kết thúc
 root.protocol("WM_DELETE_WINDOW", on_closing)
