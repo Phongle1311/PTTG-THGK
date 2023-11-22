@@ -290,7 +290,7 @@ class App(tk.Tk):
             (self.Xbar, self.mu_Xbar, _) = self.pca.standardize(
                 flatten_images
             )  # chuẩn hóa
-            num_components = 10  # TODO: mặc dù không lỗi, nhưng nên sửa lại
+            num_components = int(self.left_side_bar.n_pc_var.get())
             if num_components <= self.Xbar.shape[1]:
                 self.pca.optimize = True
             self.pca.fit(self.Xbar)
@@ -314,7 +314,7 @@ class App(tk.Tk):
         # error = mse(reconstructed_imgs, Xbar)
 
         # Update ảnh lên main frame
-        self.left_side_bar.update_reconstructed_image(
+        self.right_side_bar.update_reconstructed_image(
             reconstructed_images[shown_image_index]
         )
 
