@@ -3,6 +3,7 @@ import numpy as np
 from matplotlib.image import imread
 import matplotlib.pyplot as plt
 from tkinter import (
+    Label,
     Tk,
     Button,
     filedialog,
@@ -53,6 +54,8 @@ def release_update_compressed_image(value):
     ax_compressed.imshow(X_r)
     ax_compressed.set_title(f"Compressed Image (Rank {RANK})")
     canvas_compressed.draw()
+    # Cập nhật và hiển thị kích thước ảnh
+    update_image_size(RANK)
 
 
 # Cho phép người dùng chọn và thêm ảnh mới từ hộp thoại mở tệp
@@ -64,25 +67,28 @@ def add_image():
         img = imread(file_path)
         img = img2double(img)
 
-        # Cập nhật canvas hình ảnh nén
-        release_update_compressed_image(RANK)
+    # Cập nhật canvas hình ảnh nén
+    release_update_compressed_image(RANK)
 
+    # Cập nhật và hiển thị kích thước ảnh
+    update_image_size(RANK)
 
-# Cập nhật ảnh nén khi người dùng chọn ảnh từ danh sách.
-def select_image(event):
-    global img, RANK
+# Cập nhật và hiển thị kích thước ảnh khi chọn ảnh mới
+def update_image_size(value):
+    global img, label_image_size,label_image_pixel,label_image_us,label_image_cs,label_image_cr
+    global cs, pixel
 
-    selected_index = listbox.curselection()
-    if selected_index:
-        selected_image = listbox.get(selected_index)
-        img_path = os.path.join("img", selected_image)
-        img = imread(img_path)
-        img = img2double(img)
+    RANK = int(value)
 
-        # Cập nhật canvas hình ảnh nén
-        release_update_compressed_image(RANK)
-
-
+    if img is not None:
+        height, width, _ = img.shape
+        label_image_size.config(text=f"IMAGE SIZE  {width} x {height} ")
+        pixel = width*height
+        label_image_pixel.config(text=f"#PIXELS      ={pixel} ")
+        label_image_us.config(text=f"UNCOMPRESSED SIZE                   \nproportional to number of pixels")
+        cs = width*RANK + RANK + RANK*height
+        label_image_cs.config(text=f"COMPRESSED SIZE                     \napproximately proportional to\n{width} x {RANK} + {RANK} + {RANK} x {height}\n={cs}")
+        label_image_cr.config(text=f"COMPRESSION RATIO                   \n{pixel} / {cs}\n={pixel/cs}")
 # Xử lý sự kiện đóng cửa sổ
 def on_closing():
     root.destroy()
@@ -113,11 +119,25 @@ slider = Scale(
 slider.set(RANK)
 slider.pack()
 
+# Label để hiển thị kích thước ảnh
+label_image_size = Label(root, text="IMAGE SIZE ")
+label_image_size.place(x=100, y=90)
+label_image_pixel = Label(root, text="#PIXELS      =")
+label_image_pixel.place(x=100, y=110)
+label_image_us = Label(root, text="UNCOMPRESSED SIZE ")
+label_image_us.place(x=100, y=150)
+label_image_cs = Label(root, text="COMPRESSED SIZE ")
+label_image_cs.place(x=100, y=190)
+label_image_cr = Label(root, text="COMPRESSION RATIO ")
+label_image_cr.place(x=100, y=260)
+
+
 # Hiển thị ảnh nén sau khi áp dụng phương pháp SVD
 fig_compressed = plt.Figure(figsize=(4, 4))
 ax_compressed = fig_compressed.add_subplot(111)
 canvas_compressed = FigureCanvasTkAgg(fig_compressed, master=root)
 canvas_compressed.get_tk_widget().pack()
+
 
 # Thiết lập sự kiện cho thanh slider
 slider.bind(
@@ -127,7 +147,6 @@ slider.bind(
 # Hiển thị tất cả các ảnh gốc trong thư mục 'img' và cho phép người dùng chọn ảnh để xem và nén
 listbox = Listbox(root)
 listbox.pack(side="bottom")
-listbox.bind("<Button-1>", select_image)
 
 
 def create_click_event(canvas, img):
@@ -145,6 +164,9 @@ def on_canvas_click(event, template_image):
     # Update RANK value here
     update_compressed_image(slider.get())  # Ensure RANK is updated
     release_update_compressed_image(slider.get())
+
+    # Cập nhật và hiển thị kích thước ảnh
+    update_image_size(slider.get())
 
 
 for img_file in os.listdir("img"):
