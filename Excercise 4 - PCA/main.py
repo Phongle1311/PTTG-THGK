@@ -221,17 +221,7 @@ class MainFrame(ttk.Frame):
         self.input_image.image = photo
 
     def update_reconstructed_image(self, image_data):
-        # Chuyển đổi mảng numpy thành hình ảnh của Pillow
-        # image = Image.fromarray((image_data * 255).astype("uint8"))
-        # # Resize ảnh để hiển thị trong widget (ở đây là 200x200)
-        # image = image.resize((200, 200), Image.ANTIALIAS)
-        # # Chuyển đổi hình ảnh của Pillow thành ImageTk để hiển thị trong tkinter
-        # tk_image = ImageTk.PhotoImage(image)
-        # self.reconstructed_image.configure(image=tk_image)
-        # self.reconstructed_image.image = tk_image
-        # Tạo figure và subplot với matplotlib
-        for widget in self.reconstructed_image.winfo_children():
-            widget.destroy()
+        self.empty_reconstructed_frame()
         fig, ax = plt.subplots()
         ax.imshow(image_data.reshape((64, 64)), cmap="gray")
 
@@ -242,9 +232,13 @@ class MainFrame(ttk.Frame):
         # Cập nhật widget canvas với hình ảnh
         canvas.get_tk_widget().pack(side="bottom", fill="both", expand=True)
 
+    def empty_reconstructed_frame(self):
+        for widget in self.reconstructed_image.winfo_children():
+            widget.destroy()
+
     def update_image_by_index(self):
         # print(reconstructed_images.shape)
-        shown_image_index = int(self.image_index_var.get())
+        shown_image_index = int(self.image_index_var.get()) - 1
 
         if 0 <= shown_image_index < len(images):
             self.update_input_image(images[shown_image_index])
@@ -301,6 +295,7 @@ class App(tk.Tk):
             self.right_side_bar.update_input_image(
                 images[shown_image_index]
             )  # cập nhật ảnh hiển thị
+            self.right_side_bar.empty_reconstructed_frame()
             del self.pca  # Giải phóng bộ nhớ
             self.pca = PCA()  # Tạo instance mới
             (self.Xbar, self.mu, _) = self.pca.standardize(flatten_images)  # chuẩn hóa
@@ -337,7 +332,7 @@ class App(tk.Tk):
         )
 
         # Update ảnh lên main frame
-        shown_image_index = int(self.right_side_bar.image_index_var.get())
+        shown_image_index = int(self.right_side_bar.image_index_var.get()) - 1
         self.right_side_bar.update_reconstructed_image(
             reconstructed_images[:, shown_image_index].reshape(64, 64)
         )
