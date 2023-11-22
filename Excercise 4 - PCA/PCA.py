@@ -55,10 +55,24 @@ class PCA:
                 break
          
         return num_components
+    
+    def need_to_refit(self, num_components, num_of_images):
+        delta = num_components - num_of_images
+        if  delta > 0 and self.optimize == True:
+            self.optimize = False
+            return True
+        if delta <= 0 and self.optimize == False:
+            self.optimize = True
+            return True
+        return False        
 
     def reconstruct_img(self, Xbar, mu_Xbar, num_components = None, preserved = None):
         if preserved is not None:
             num_components = self.preserved_var_explained(preserved)
+
+        if self.need_to_refit(num_components, Xbar.shape[1]):
+            self.fit(Xbar)
+
         U = self.eigenvectors[:, range(num_components)]
         self.prj_matrix = self.projection_matrix(U)
         if self.optimize:
